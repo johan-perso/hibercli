@@ -4,17 +4,15 @@
 
 HiberCLI propose quelques fonctionnalités comme :
 
-* Création automatique d'un QR code.
+* Affichage d'un QR code lors de l'upload sur Windows (via une notification)
 * Prévisualisation des fichier .txt et .md
-* Téléchargement des fichiers dans votre dossier téléchargement (seulement sous Windows)
 * Création et ouverture de groupe de liens
 * Copie automatique des liens dans le presse-papier
 
 
 ## Prérequis
 
-* Un appareil sous Windows, macOS, Linux ou ChromeOS (Avec Crostini)
-	* En gros tant que t'as NodeJS et NPM compatible avec ton système, ça passe
+* Un appareil sous Windows, macOS, Linux ou ChromeOS (en passant par Crostini)
 * [nodejs et npm](https://nodejs.org) d'installé
 
 

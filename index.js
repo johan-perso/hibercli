@@ -3,7 +3,6 @@
 // Dépendences et quelques variables
 const chalk = require('chalk');
 const fs = require("fs");
-const validator = require("validator");
 const fetch = require('node-fetch');
 const ora = require('ora');
 const hr = require('@tsmx/human-readable');
@@ -41,33 +40,16 @@ if (notifierUpdate.update && pkg.version !== notifierUpdate.update.latest){
 // Préparer un spinner
 const spinner = ora('')
 
-// Obtenir le dossier de téléchargement du système
-function downloadPath(){
-	// Sur Windows
-	if(os.platform() === "win32") return path.join(os.homedir(), "Downloads")
-
-	// Si on est pas sur Windows
-	if(os.platform() !== "win32"){
-		// Crée un dossier "download" si il n'existe pas
-		if (!fs.existsSync(path.join(__dirname, "Downloads"))){
-			fs.mkdirSync(path.join(__dirname, "Downloads"));
-		}
-
-		// Retourner le chemin
-		return path.join(__dirname, "Downloads")
-	}
-}
-
 // Crée un QR Code
 async function qrGenerator(qrtext){
 	// Obtenir un chemin pour l'enregistrement de fichier (temporaire)
-		// Crée un dossier "download" si il n'existe pas
-		if (!fs.existsSync(path.join(__dirname, "Downloads"))){
-			fs.mkdirSync(path.join(__dirname, "Downloads"));
+		// Crée un dossier "HiberCLI_temp" si il n'existe pas
+		if (!fs.existsSync(path.join(os.tmpdir(), "HiberCli_temp"))){
+			fs.mkdirSync(path.join(os.tmpdir(), "HiberCli_temp"));
 		}
 
 		// Obtenir le chemin
-		var dirPath = path.join(__dirname, "Downloads")
+		var dirPath = path.join(os.tmpdir(), "HiberCli_temp")
 
 	// Télécharger le fichier
 		// Préparer le téléchargement
@@ -93,12 +75,12 @@ async function qrGenerator(qrtext){
 async function groupLinkGenerator(arrayLink){
 	// Obtenir un chemin pour l'enregistrement de fichier (temporaire)
 		// Crée un dossier "download" si il n'existe pas
-		if (!fs.existsSync(path.join(__dirname, "Downloads"))){
-			fs.mkdirSync(path.join(__dirname, "Downloads"));
+		if (!fs.existsSync(path.join(os.tmpdir(), "HiberCLI_temp"))){
+			fs.mkdirSync(path.join(os.tmpdir(), "HiberCLI_temp"));
 		}
 
 		// Obtenir le chemin
-		var dirPath = path.join(__dirname, "Downloads")
+		var dirPath = path.join(os.tmpdir(), "HiberCLI_temp")
 
 	// Crée le fichier
 	fs.writeFile(path.join(dirPath, 'HiberCLI-TempGroupLink.hibercli-links'), '[HiberCLI-LinkS by Johan_Stickman]\n\n' + arrayLink.map(u => u).join('\n'), function (err) {
@@ -248,12 +230,11 @@ async function showNotificationUpload(title, message, hiberfileId){
 }
 
 // Si l'argument est help ou rien
-if(process.argv.slice(2)[0] === "--help" || process.argv.slice(2)[0] === "-h" || !process.argv.slice(2)[0]) return console.log(`
+if(process.argv.slice(2)[0] === "--help" || process.argv.slice(2)[0] === "-h" || process.argv.slice(2)[0] !== "--version" && process.argv.slice(2)[0] !== "-v" && process.argv.slice(2)[0] !== "--download" && process.argv.slice(2)[0] !== "-d" && process.argv.slice(2)[0] !== "--upload" && process.argv.slice(2)[0] !== "-u" && process.argv.slice(2)[0] !== "--group" && process.argv.slice(2)[0] !== "-g") return console.log(`
  Utilisation
    $ hibercli
 
  Options
-   --help -h             Affiche quelques informations
    --version -v          Indique la version actuellement utilisé
    --download -d         Télécharge un fichier sur votre appareil
    --upload -u           Envoie un fichier sur HiberFile
@@ -272,13 +253,13 @@ if(process.argv.slice(2)[0] === "--version" || process.argv.slice(2)[0] === "-v"
 	console.log("Lien de l'API : " + chalk.cyan(hiberfileLink))
 	console.log("────────────────────────────────────────────")
 	console.log("Développé par Johan le stickman")
-	console.log(chalk.cyan("https://johan-stickman.is-a.dev"))
+	console.log(chalk.cyan("https://johanstickman.com"))
 	return process.exit()
 }
 
 // Déterminer si on souhaite télécharger, envoyer un fichier ou crée un groupe de liens
 if(process.argv.slice(2)[0] === "--download" || process.argv.slice(2)[0] === "-d"){
-	if(validator.isURL(process.argv.slice(2)[1] || "nothing", {protocols: ['http','https']})){ return download(process.argv.slice(2)[1]) } else console.log(chalk.red("Utilisation de la commande : ") + chalk.cyan("hibercli --download <lien HiberFile>"))
+	return download(process.argv.slice(2)[1])
 }
 
 if(process.argv.slice(2)[0] === "--upload" || process.argv.slice(2)[0] === "-u"){
@@ -351,8 +332,10 @@ async function download(link){
 	spinner.start()
 	spinner.text = " Obtention des informations du fichier..."
 
-	// Obtenir l'ID HiberFile
-	var id = link.replace(/\//g, "").replace(/:/g, "").replace("hiberfile.comd","").replace("https","").replace("http","")
+	// Obtenir l'ID HiberFile (note : le "hiberfile.comD" est voulu)
+	if(!link.endsWith("/")) var id = link.split("/")
+	if(link.endsWith("/")) var id = link.slice(0, -1).split("/")
+	id = id[id.length - 1]
 
 	// Faire une requête pour le code HTTP
 	var fetchCode = await fetch(`https://api.hiberfile.com/files/${id}`, { method: 'GET', follow: 20 })
@@ -470,7 +453,7 @@ async function download(link){
 	// Préparer le téléchargement
 	const downloader = new Downloader({
 		url: fetchInfo.downloadUrl,
-		directory: downloadPath(),  
+		directory: path.join(process.cwd()),  
 		fileName: 'HiberCLI-' + fetchInfo.filename,
 		onProgress: function (percentage, chunk, remainingSize){
 			// Modifier le spinner
@@ -493,7 +476,7 @@ async function download(link){
 	spinner.succeed()
 
 	// Donner l'emplacement du fichier
-	console.log(chalk.green("✔") + chalk.dim("  Le fichier se trouve dans ") + chalk.cyan(path.join(downloadPath(), 'HiberCLI-' + fetchInfo.filename)))
+	console.log(chalk.green("✔") + chalk.dim("  Le fichier se trouve dans ") + chalk.cyan(path.join(path.join(process.cwd()), 'HiberCLI-' + fetchInfo.filename)))
 
 	// Afficher une notification
 	showNotificationUpload("HiberCLI - Téléchargement", `${fetchInfo.filename} vient de se téléchargé avec succès.`)

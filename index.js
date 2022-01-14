@@ -454,7 +454,7 @@ async function download(link){
 	const downloader = new Downloader({
 		url: fetchInfo.downloadUrl,
 		directory: path.join(process.cwd()),  
-		fileName: 'HiberCLI-' + fetchInfo.filename,
+		fileName: fetchInfo.filename,
 		onProgress: function (percentage, chunk, remainingSize){
 			// Modifier le spinner
 			spinner.text = ` Téléchargement de ${fetchInfo.filename} : ${percentage} %, ${hr.fromBytes(remainingSize, 'BYTE', 'MBYTE')} restant.`
@@ -476,7 +476,7 @@ async function download(link){
 	spinner.succeed()
 
 	// Donner l'emplacement du fichier
-	console.log(chalk.green("✔") + chalk.dim("  Le fichier se trouve dans ") + chalk.cyan(path.join(path.join(process.cwd()), 'HiberCLI-' + fetchInfo.filename)))
+	console.log(chalk.green("✔") + chalk.dim("  Le fichier se trouve dans ") + chalk.cyan(path.join(path.join(process.cwd()), fetchInfo.filename)))
 
 	// Afficher une notification
 	showNotificationUpload("HiberCLI - Téléchargement", `${fetchInfo.filename} vient de se téléchargé avec succès.`)

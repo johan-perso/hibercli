@@ -1,6 +1,6 @@
 {
   "name": "hibercli",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Télécharger et envoyer des fichiers depuis HiberFile, via votre Terminal.",
   "keywords": [
     "cli",

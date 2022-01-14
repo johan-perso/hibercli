@@ -12,14 +12,14 @@ HiberCLI propose quelques fonctionnalités comme :
 
 ## Prérequis
 
-* Un appareil sous Windows, macOS, Linux ou ChromeOS (en passant par Crostini)
-* [nodejs et npm](https://nodejs.org) d'installé
+* Un appareil sous Windows, macOS, Linux ou ChromeOS (en passant par Crostini)
+* [nodejs et npm](https://nodejs.org) d'installé
 
 
 ## Installation
 
 ```
-$ (sudo) npm install --global hibercli
+$ (sudo) npm install --global hibercli
 ```
 
 

@@ -1,5 +1,24 @@
 #!/usr/bin/env node
 
+// Lazy Load Modules
+var _require = require;
+var require = function (moduleName) {
+    var module;
+    return new Proxy(function () {
+        if (!module) {
+            module = _require(moduleName)
+        }
+        return module.apply(this, arguments)
+    }, {
+        get: function (target, name) {
+            if (!module) {
+                module = _require(moduleName)
+            }
+            return module[name];
+        }
+    })
+};
+
 // Dépendences et quelques variables
 const chalk = require('chalk');
 const fs = require("fs");
@@ -14,7 +33,7 @@ const updateNotifier = require('update-notifier');
 const TerminalRenderer = require('marked-terminal');
 const Box = require("cli-box");
 const inquirer = require('inquirer');
-const Downloader = require('nodejs-file-downloader');
+const Downloader = _require('nodejs-file-downloader');
 const path = require('path');
 const os = require('os');
 const hiberfileLink = "https://api.hiberfile.com/"
@@ -23,7 +42,7 @@ const pkg = require('./package.json')
 // Système de mise à jour
 const notifierUpdate = updateNotifier({ pkg, updateCheckInterval: 10 });
 
-if (notifierUpdate.update && pkg.version !== notifierUpdate.update.latest){
+if(notifierUpdate.update && pkg.version !== notifierUpdate.update.latest){
 	// Afficher un message
 	console.log(boxen("Mise à jour disponible " + chalk.dim(pkg.version) + chalk.reset(" → ") + chalk.green(notifierUpdate.update.latest) + "\n" + chalk.cyan("npm i -g " + pkg.name) + " pour mettre à jour", {
 		padding: 1,
@@ -44,7 +63,7 @@ const spinner = ora('')
 async function qrGenerator(qrtext){
 	// Obtenir un chemin pour l'enregistrement de fichier (temporaire)
 		// Crée un dossier "HiberCLI_temp" si il n'existe pas
-		if (!fs.existsSync(path.join(os.tmpdir(), "HiberCli_temp"))){
+		if(!fs.existsSync(path.join(os.tmpdir(), "HiberCli_temp"))){
 			fs.mkdirSync(path.join(os.tmpdir(), "HiberCli_temp"));
 		}
 
@@ -74,8 +93,8 @@ async function qrGenerator(qrtext){
 // Générer un fichier temporaire ".hibercli-links" (groupe de liens)
 async function groupLinkGenerator(arrayLink){
 	// Obtenir un chemin pour l'enregistrement de fichier (temporaire)
-		// Crée un dossier "download" si il n'existe pas
-		if (!fs.existsSync(path.join(os.tmpdir(), "HiberCLI_temp"))){
+		// Crée un dossier si il n'existe pas
+		if(!fs.existsSync(path.join(os.tmpdir(), "HiberCLI_temp"))){
 			fs.mkdirSync(path.join(os.tmpdir(), "HiberCLI_temp"));
 		}
 
@@ -84,7 +103,7 @@ async function groupLinkGenerator(arrayLink){
 
 	// Crée le fichier
 	fs.writeFile(path.join(dirPath, 'HiberCLI-TempGroupLink.hibercli-links'), '[HiberCLI-LinkS by Johan_Stickman]\n\n' + arrayLink.map(u => u).join('\n'), function (err) {
-		if (err) console.log(chalk.red(err))
+		if(err) console.log(chalk.red(err))
 	 });
 
 	// Retourner le chemin du fichier
@@ -99,21 +118,52 @@ function showBoxPreview(text, h, align){
 		h: h.split(/\r\n|\r|\n/).length,
 		stringify: false,
 		marks: {
-		nw: chalk.yellow('╭'),
-		n: chalk.yellow('─'),
-		ne: chalk.yellow('╮'),
-		e: chalk.yellow('│'),
-		se: chalk.yellow('╯'),
-		s: chalk.yellow('─'),
-		sw: chalk.yellow('╰'),
-		w: chalk.yellow('│')
+			nw: chalk.yellow('╭'),
+			n: chalk.yellow('─'),
+			ne: chalk.yellow('╮'),
+			e: chalk.yellow('│'),
+			se: chalk.yellow('╯'),
+			s: chalk.yellow('─'),
+			sw: chalk.yellow('╰'),
+			w: chalk.yellow('│')
 		},
 		hAlign: align,
 	}, text);
 
 	// Retourner la preview
 	return preview.stringify();
+}
 
+// Fonction pour ajouter un lien à l'historique de fichiers
+function addToHistory(link, type, expirationTime){
+	// Obtenir un chemin pour l'enregistrement de l'historique
+		// Crée un dossier si il n'existe pas
+		if(!fs.existsSync(path.join(os.tmpdir(), "HiberCLI_temp"))){
+			fs.mkdirSync(path.join(os.tmpdir(), "HiberCLI_temp"));
+		}
+
+		// Obtenir le chemin
+		var dirPath = path.join(os.tmpdir(), "HiberCLI_temp")
+
+	// Si le fichier "history.json" n'existe pas
+	if(!fs.existsSync(path.join(dirPath, "history.json"))){
+		fs.writeFileSync(path.join(dirPath, "history.json"), JSON.stringify({ list: [] }));
+	}
+
+	// Ajouter le lien à l'historique
+	var history = JSON.parse(fs.readFileSync(path.join(dirPath, "history.json")));
+	history.list.push({
+		link: link,
+		type: type,
+		expirationDate: (new Date()).getTime() + (expirationTime * 1000),
+		savedTime: new Date().getTime()
+	})
+
+	// Enregistrer l'historique
+	fs.writeFileSync(path.join(dirPath, "history.json"), JSON.stringify(history));
+
+	// Retourner l'historique
+	return history;
 }
 
 // Upload / Création d'un groupe de lien : demander la durée avant expiration du fichier
@@ -123,7 +173,7 @@ async function showMenuUpload(){
 		{
 			type: 'list',
 			name: 'name',
-			message: ' Durée avant expiration du fichier',
+			message: 'Durée avant expiration du fichier',
 			choices: [
 				'5 minutes',
 				'30 minutes',
@@ -131,22 +181,46 @@ async function showMenuUpload(){
 				'12 heures',
 				'1 jour',
 				'1 mois',
-				'1 année',
 				new inquirer.Separator(),
-				'Infini'
+				'Infini',
+				'Personnalisable',
+				new inquirer.Separator(),
 			]
 		}
 	])
-	.then(answer => {
+	.then(async answer => {
 		// Selon le temps indiqué
-		if(answer.name.toLowerCase() === "5 minutes") return 300;
-		if(answer.name.toLowerCase() === "30 minutes") return 1800;
-		if(answer.name.toLowerCase() === "1 heure") return 3600;
-		if(answer.name.toLowerCase() === "12 heures") return 43200;
-		if(answer.name.toLowerCase() === "1 jour") return 86400;
-		if(answer.name.toLowerCase() === "1 mois") return 2592000;
-		if(answer.name.toLowerCase() === "1 année") return 31536000;
-		if(answer.name.toLowerCase() === "infini") return 250000000000;
+		if(answer.name === "5 minutes") return 300;
+		if(answer.name === "30 minutes") return 1800;
+		if(answer.name === "1 heure") return 3600;
+		if(answer.name === "12 heures") return 43200;
+		if(answer.name === "1 jour") return 86400;
+		if(answer.name === "1 mois") return 2592000;
+		if(answer.name === "Infini") return 250000000000;
+		if(answer.name === "Personnalisable") return await showMenuCustomTime();
+	});
+}
+
+// Upload / Création d'un groupe de lien : choisir une durée personnalisée
+async function showMenuCustomTime(){
+	// Demander la durée du fichier
+	return inquirer.prompt([
+		{
+			type: 'input',
+			name: 'time',
+			message: 'Durée personnalisée (en secondes)',
+			validate: function(value){
+				if(!value) return "Entrer une durée en seconde, le fichier sera supprimé après ce temps";
+				if(isNaN(value)) return "La durée ne semble pas être un nombre valide";
+				if(value < 2) return "La durée est un peu trop.. courte";
+				if(value > 2592000) return "La durée est un peu trop.. longue";
+				return true;
+			}
+		}
+	])
+	.then(answer => {
+		// Retourner la durée
+		return answer.time;
 	});
 }
 
@@ -230,7 +304,7 @@ async function showNotificationUpload(title, message, hiberfileId){
 }
 
 // Si l'argument est help ou rien
-if(process.argv.slice(2)[0] === "--help" || process.argv.slice(2)[0] === "-h" || process.argv.slice(2)[0] !== "--version" && process.argv.slice(2)[0] !== "-v" && process.argv.slice(2)[0] !== "--download" && process.argv.slice(2)[0] !== "-d" && process.argv.slice(2)[0] !== "--upload" && process.argv.slice(2)[0] !== "-u" && process.argv.slice(2)[0] !== "--group" && process.argv.slice(2)[0] !== "-g") return console.log(`
+if(process.argv.slice(2)[0] === "--help" || process.argv.slice(2)[0] === "-h" || process.argv.slice(2)[0] !== "--version" && process.argv.slice(2)[0] !== "-v" && process.argv.slice(2)[0] !== "--download" && process.argv.slice(2)[0] !== "-d" && process.argv.slice(2)[0] !== "--upload" && process.argv.slice(2)[0] !== "-u" && process.argv.slice(2)[0] !== "--group" && process.argv.slice(2)[0] !== "-g" && process.argv.slice(2)[0] !== "--history" && process.argv.slice(2)[0] !== "-h") console.log(`
  Utilisation
    $ hibercli
 
@@ -238,6 +312,7 @@ if(process.argv.slice(2)[0] === "--help" || process.argv.slice(2)[0] === "-h" ||
    --version -v          Indique la version actuellement utilisé
    --download -d         Télécharge un fichier sur votre appareil
    --upload -u           Envoie un fichier sur HiberFile
+   --history -h          Affiche l'historique des fichiers uploadés
    --group -g            Crée et partage un groupe de liens
 
  Télécharger un fichier
@@ -254,31 +329,142 @@ if(process.argv.slice(2)[0] === "--version" || process.argv.slice(2)[0] === "-v"
 	console.log("────────────────────────────────────────────")
 	console.log("Développé par Johan le stickman")
 	console.log(chalk.cyan("https://johanstickman.com"))
-	return process.exit()
+	process.exit()
 }
 
 // Déterminer si on souhaite télécharger, envoyer un fichier ou crée un groupe de liens
 if(process.argv.slice(2)[0] === "--download" || process.argv.slice(2)[0] === "-d"){
-	return download(process.argv.slice(2)[1])
+	// Vérifier si un argument a été donné
+	if(!process.argv.slice(2)[1]) console.log(chalk.red("Utilisation de la commande : ") + chalk.cyan("hibercli --download <lien du fichier>")) & process.exit()
+
+	// Télécharger le fichier
+	download(process.argv.slice(2)[1])
 }
 
 if(process.argv.slice(2)[0] === "--upload" || process.argv.slice(2)[0] === "-u"){
 	// Vérifier si un argument a été donné
-	if(!process.argv.slice(2)[1]) return console.log(chalk.red("Utilisation de la commande : ") + chalk.cyan("hibercli --upload <chemin vers un fichier>"))
+	if(!process.argv.slice(2)[1]) console.log(chalk.red("Utilisation de la commande : ") + chalk.cyan("hibercli --upload <chemin vers un fichier>")) & process.exit()
 
 	// Vérifier si le chemin existe
-	if(!fs.existsSync(process.argv.slice(2)[1])) return console.log(chalk.red("Le fichier n'a pas pu être trouvé."))
+	if(!fs.existsSync(process.argv.slice(2)[1])) console.log(chalk.red("Le fichier n'a pas pu être trouvé."))
 
 	// Vérifier si ce n'est pas un dossier
-	if(fs.lstatSync(process.argv.slice(2)[1]).isDirectory()) return console.log(chalk.red("Vous ne pouvez pas envoyer de dossiers depuis HiberCLI."))
+	if(fs.lstatSync(process.argv.slice(2)[1]).isDirectory()) console.log(chalk.red("Vous ne pouvez pas envoyer de dossiers depuis HiberCLI."))
 
 	// Afficher le menu d'upload de fichiers
 	upload(process.argv.slice(2)[1], "option show menu")
 }
 
+if(process.argv.slice(2)[0] === "--history" || process.argv.slice(2)[0] === "-h"){
+	// Obtenir un chemin pour l'enregistrement de l'historique
+		// Crée un dossier si il n'existe pas
+		if(!fs.existsSync(path.join(os.tmpdir(), "HiberCLI_temp"))){
+			fs.mkdirSync(path.join(os.tmpdir(), "HiberCLI_temp"));
+		}
+
+		// Obtenir le chemin
+		var dirPath = path.join(os.tmpdir(), "HiberCLI_temp")
+
+	// Si le fichier "history.json" n'existe pas
+	if(!fs.existsSync(path.join(dirPath, "history.json"))){
+		fs.writeFileSync(path.join(dirPath, "history.json"), JSON.stringify({ list: [] }));
+	}
+
+	// Obtenir l'historique
+	var history;
+	try {
+		history = JSON.parse(fs.readFileSync(path.join(dirPath, "history.json")))
+	} catch (error) {
+		// Réinitialiser l'historique
+		fs.writeFileSync(path.join(dirPath, "history.json"), JSON.stringify({ list: [] }));
+		history = { list: [] }
+	}
+	history = history?.list
+
+	// Si l'historique est vide
+	if(!history || history.length == 0){
+		console.log(chalk.red("Votre historique est actuellement vide."))
+		process.exit()
+	}
+
+	// Mettre les type "group" au début, puis le type "file"
+	history = history.sort(function(a, b){
+		if(a.type == "group" && b.type == "file") return -1;
+		if(a.type == "file" && b.type == "group") return 1;
+		return 0;
+	})
+
+	// Préparer de quoi filtrer l'historique en 2 parties
+	var history_notExpired = []
+	var history_expired = []
+
+	// Filtrer l'historique
+	for(var i = 0; i < history.length; i++){
+		// Si le lien n'est pas expiré
+		if(history[i].expirationDate > Date.now()){
+			history_notExpired.push(history[i])
+		} else {
+			history_expired.push(history[i])
+		}
+	}
+
+	// Afficher les élements expirés
+	if(history_expired?.length) console.log(chalk.bold('Elements expirés :'))
+	history_expired.forEach(item => {
+		console.log(`• ${chalk.cyan(item.link)} :\n   Type                  : ${chalk.gray(item.type.replace('file','fichier 📄').replace('group','groupe 🔗'))}\n   Date d'expiration     : ${chalk.gray(new Date(item.expirationDate).toLocaleString())}\n   Date d'enregistrement : ${chalk.gray(new Date(item.savedTime).toLocaleString())}\n`)
+	})
+
+	// Afficher un séparateur
+	if(history_notExpired?.length && history_expired?.length) console.log(chalk.yellow("─".repeat(parseInt(process.stdout.columns))) + '\n')
+
+	// Afficher les élements non expirés
+	if(history_notExpired?.length) console.log(chalk.bold('Elements non expirés :'))
+	history_notExpired.forEach(item => {
+		console.log(`• ${chalk.cyan(item.link)} :\n   Type                  : ${chalk.gray(item.type.replace('file','fichier 📄').replace('group','groupe 🔗'))}\n   Date d'expiration     : ${chalk.gray(new Date(item.expirationDate).toLocaleString())}\n   Date d'enregistrement : ${chalk.gray(new Date(item.savedTime).toLocaleString())}\n`)
+	})
+
+	// Demander si on veut effectuer des actions supplémentaires
+	console.log()
+	inquirer.prompt([
+		{
+			type: "list",
+			name: "action",
+			message: "Que souhaitez-vous faire ?",
+			choices: [
+				"Afficher le fichier",
+				"Supprimer l'historique",
+				"Quitter"
+			]
+		}
+	]).then(answers => {
+		// Si on veut l'afficher
+		if(answers.action === "Afficher le fichier"){
+			// Déminifier le fichier
+			try {
+				fs.writeFileSync(path.join(dirPath, "history.json"), JSON.stringify(JSON.parse(fs.readFileSync(path.join(dirPath, "history.json"), "utf8")), null, 4))
+			} catch (error){}
+
+			// Ouvrir le fichier
+			require("openurl").open("file://" + path.join(dirPath, "history.json"))
+		}
+
+		// Si on veut le supprimer
+		if(answers.action === "Supprimer l'historique"){
+			// Supprimer le fichier
+			fs.unlinkSync(path.join(dirPath, "history.json"))
+
+			// Afficher un message
+			console.log(chalk.green("L'historique a été supprimé."))
+		}
+
+		// Si on veut quitter
+		if(answers.action === "Quitter") process.exit()
+	})
+}
+
 if(process.argv.slice(2)[0] === "--group" || process.argv.slice(2)[0] === "-g"){
 	// Vérifier si un argument a été donné
-	if(!process.argv.slice(2)[1]) return console.log(chalk.red("Utilisation de la commande : ") + chalk.cyan("hibercli --group <lien1> [lien2] [lien3] [lien4] [lien5] [lien6]"))
+	if(!process.argv.slice(2)[1]) console.log(chalk.red("Utilisation de la commande : ") + chalk.cyan("hibercli --group <lien1> [lien2] [lien3] [lien4] [lien5] [lien6]")) & process.exit()
 
 	// Liste des liens
 	var list = []
@@ -302,22 +488,52 @@ async function upload(filePath, time){
 		return upload(filePath, showMenuTime)
 	}
 
+	// Si le fichier pèse plus de 5 GB
+	var stats = fs.statSync(filePath)
+	if(stats.size > 5000000000){
+		// Si le fichier expire dans plus d'un mois
+		if(time > 2592000){
+			console.log(chalk.yellow(`Votre fichier pèse ${chalk.bold(hr.fromBytes(stats.size, 'BYTE', 'MBYTE'))} et ${(time == 250000000000 ? "n'expire pas" : "est censé expirer le " + chalk.bold(new Date(Date.now() + (time * 1000)).toLocaleDateString()))}.`))
+			console.log(`La durée maximale d'expiration d'un fichier est défini sur "1 mois" sur ${chalk.cyan('hiberfile.com')}, mais HiberCLI vous permet d'uploader les fichiers de moins de 5 GB sans limite.`)
+			return process.exit()
+		}
+
+		// Afficher la taille du fichier
+		console.log(chalk.yellow(`\nLe fichier que vous tentez d'uploader pèse ${chalk.bold(hr.fromBytes(stats.size, 'BYTE', 'MBYTE'))}.`))
+
+		// Demander si on est sûr de vouloir l'upload
+		var sureToUploadFile = await inquirer.prompt([
+			{
+				type: 'confirm',
+				name: 'confirm',
+				message: "Êtes-vous sûr d'uploader ce fichier ?",
+				default: false
+			}
+		])
+
+		// Si on ne veut pas uploader le fichier, arrêter le processus
+		if(!sureToUploadFile.confirm) return process.exit()
+	}
+
 	// Afficher un spinner
 	spinner.start()
-	spinner.text = " Envoi du fichier en cours..."
+	spinner.text = "Envoi du fichier en cours..."
 
 	// Faire les requêtes
 	var fetchCreate = await doRequestUpload(filePath, time)
 
+	// Ajouter le fichier à l'historique
+	addToHistory(`https://hiberfile.com/d/${fetchCreate.hiberfileId}`, 'file', time)
+
 	// Arrêter le spinner
-	spinner.text = " Fichier envoyé : "
+	spinner.text = "Fichier envoyé : "
 	spinner.succeed()
 
 	// Copier le lien dans le presse papier
-	clipboardy.write("https://hiberfile.com/d/" + fetchCreate.hiberfileId).catch(err => {})
+	clipboardy.write(`https://hiberfile.com/d/${fetchCreate.hiberfileId}`).catch(err => {})
 
 	// Donner le lien
-	console.log(chalk.cyan("https://hiberfile.com/d/" + fetchCreate.hiberfileId));
+	console.log(chalk.cyan(`https://hiberfile.com/d/${fetchCreate.hiberfileId}`));
 
 	// Afficher une notification
 	showNotificationUpload("HiberCLI - Partage de fichier", `${path.basename(filePath)} uploadé avec succès.\nhiberfile.com/d/${fetchCreate.hiberfileId}`, fetchCreate.hiberfileId)
@@ -330,7 +546,7 @@ async function upload(filePath, time){
 async function download(link){
 	// Afficher un spinner : obtention des informations du fichier
 	spinner.start()
-	spinner.text = " Obtention des informations du fichier..."
+	spinner.text = "Obtention des informations du fichier..."
 
 	// Obtenir l'ID HiberFile (note : le "hiberfile.comD" est voulu)
 	if(!link.endsWith("/")) var id = link.split("/")
@@ -347,11 +563,11 @@ async function download(link){
 
 	// Si le code erreur est...
 	if(fetchCode === "Not Found"){
-		spinner.text = " Fichier introuvable"
+		spinner.text = "Fichier introuvable"
 		return spinner.fail()
 	}
 	if(fetchCode === "Too Early"){
-		spinner.text = " Le fichier n'est pas encore uploadé"
+		spinner.text = "Le fichier n'est pas encore uploadé"
 		return spinner.fail()
 	}
 
@@ -364,7 +580,7 @@ async function download(link){
 	})
 
 	// Modifier l'état du spinner (l'arrêter)
-	spinner.text = " Obtention des informations du fichier"
+	spinner.text = "Obtention des informations du fichier"
 	spinner.succeed()
 
 	// Obtenir le contenu du fichier (pour afficher une préview)
@@ -377,7 +593,7 @@ async function download(link){
 	// Afficher une prévisualisation si possible
 	if(fetchInfo.filename.endsWith(".txt")){
 		// Obtenir une preview
-		var preview = await showBoxPreview(fetchContent, fetchContent, 'left')
+		var preview = showBoxPreview(fetchContent, fetchContent, 'left')
 
 		// Afficher la preview
 		console.log("Prévisualisation du fichier texte : ")
@@ -385,7 +601,7 @@ async function download(link){
 	}
 	if(fetchInfo.filename.endsWith(".link")){
 		// Obtenir une preview
-		var preview = await showBoxPreview(fetchContent.replace("[HiberCLI-Link by Johan_Stickman]", "").replace("OriginalURL:", "").replace(/\n/g, ""), fetchContent.replace("[HiberCLI-Link by Johan_Stickman]", "").replace("OriginalURL:", "").replace(/\n/g, ""), 'middle')
+		var preview = showBoxPreview(fetchContent.replace("[HiberCLI-Link by Johan_Stickman]", "").replace("OriginalURL:", "").replace(/\n/g, ""), fetchContent.replace("[HiberCLI-Link by Johan_Stickman]", "").replace("OriginalURL:", "").replace(/\n/g, ""), 'middle')
 
 		// Afficher la preview
 		console.log("Prévisualisation du fichier lien : ")
@@ -399,7 +615,7 @@ async function download(link){
 		});
 
 		// Obtenir une preview
-		var preview = await showBoxPreview(marked(fetchContent), marked(fetchContent), 'left')
+		var preview = showBoxPreview(marked(fetchContent), marked(fetchContent), 'left')
 
 		// Afficher la preview
 		console.log("Prévisualisation du fichier markdown : ")
@@ -418,7 +634,7 @@ async function download(link){
 			{
 				type: 'checkbox',
 				name: 'url',
-				message: ' Choissisez les sites à ouvrir',
+				message: 'Choissisez les sites à ouvrir',
 				choices: arrayWebsite
 			}
 		])
@@ -426,11 +642,11 @@ async function download(link){
 		.then(answer => {
 			// Afficher un spinner
 			spinner.start()
-			spinner.text = " Ouverture des sites..."
+			spinner.text = "Ouverture des sites..."
 
 			// Si aucun site n'a été choisi
 			if(!answer.url || answer.url && !answer.url[0]){
-				spinner.text = " Aucun site choisi"
+				spinner.text = "Aucun site choisi"
 				return spinner.fail()
 			}
 
@@ -441,13 +657,13 @@ async function download(link){
 			})
 
 			// Arrêter le spinner
-			spinner.text = " Sites ouverts dans un navigateur"
+			spinner.text = "Sites ouverts dans un navigateur"
 			spinner.succeed()
 		});
 	}
 	
 	// Afficher un spinner : téléchargement de ...
-	spinner.text = ` Téléchargement de ${fetchInfo.filename}...`
+	spinner.text = `Téléchargement de ${fetchInfo.filename}...`
 	spinner.start()
 
 	// Préparer le téléchargement
@@ -457,10 +673,10 @@ async function download(link){
 		fileName: fetchInfo.filename,
 		onProgress: function (percentage, chunk, remainingSize){
 			// Modifier le spinner
-			spinner.text = ` Téléchargement de ${fetchInfo.filename} : ${percentage} %, ${hr.fromBytes(remainingSize, 'BYTE', 'MBYTE')} restant.`
+			spinner.text = `Téléchargement de ${fetchInfo.filename} : ${percentage} %, ${hr.fromBytes(remainingSize, 'BYTE', 'MBYTE')} restant.`
 
 			// Si on est à 100%
-			if(percentage === "100.00") spinner.text = ` Téléchargement de ${fetchInfo.filename} effectué.`
+			if(percentage === "100.00") spinner.text = `Téléchargement de ${fetchInfo.filename} effectué.`
 		}
 	})
 
@@ -472,7 +688,7 @@ async function download(link){
 	}
 
 	// Arrêter le spinner
-	spinner.text = ` Téléchargement de ${fetchInfo.filename} effectué.`
+	spinner.text = `Téléchargement de ${fetchInfo.filename} effectué.`
 	spinner.succeed()
 
 	// Donner l'emplacement du fichier
@@ -480,7 +696,69 @@ async function download(link){
 
 	// Afficher une notification
 	showNotificationUpload("HiberCLI - Téléchargement", `${fetchInfo.filename} vient de se téléchargé avec succès.`)
-	
+
+	// Si le fichier est un fichier .json
+	if(fetchInfo.filename.endsWith(".json")){
+		// Tenter de lire le fichier
+		var fetchContent;
+		try {
+			fetchContent = require(path.join(process.cwd(), fetchInfo.filename))
+		} catch (error) {
+			fetchContent = null
+		}
+
+		// Si la propriété "configVersion", "clipboardy" et "account" existe : on suppose que c'est une configuration Twitterminal
+		if(fetchContent && fetchContent.configVersion && fetchContent.clipboardy && fetchContent.account){
+			// Obtenir la liste des comptes
+			var listTwitterminalAccount = Object?.keys(fetchContent?.accountList || [])
+
+			// Si il n'y a pas de compte, on laisse tomber
+			if(!listTwitterminalAccount || (listTwitterminalAccount && !listTwitterminalAccount?.length)) return;
+
+			// Vérifier si Twitterminal est installé sur l'appareil
+				// Faire une commande pour obtenir le chemin de la configuration
+				var configPath;
+				try {
+					configPath = require('child_process')?.execSync('twitterminal -cp', { stdio: 'pipe' })?.toString()?.replace(/\n/g, "")
+				} catch (error) {}
+
+				// Si la commande n'a pas marché
+				if(!configPath || configPath == "") return;
+
+			// Demander si on veut remplacer la configuration actuelle par celle-ci
+			console.log(`Le fichier téléchargé est considéré comme une configuration Twitterminal.`)
+			var wantToReplaceTwitterminalConfig = await inquirer.prompt([
+				{
+					type: 'confirm',
+					name: 'replace',
+					message: "Voulez-vous l'utiliser ?",
+					default: false
+				}
+			]);
+
+			// Si on ne veut pas remplacer, laissons tomber :(
+			if(!wantToReplaceTwitterminalConfig.replace) return;
+
+			// Sinon, c'est parti pour la remplacer :)
+			spinner.text = "Remplacement de la configuration Twitterminal..."
+			spinner.start()
+
+			// Faire une copie de la précédente configuration
+			var oldConfig = require('fs').readFileSync(configPath, 'utf8')
+			fs.writeFileSync(path.join(path.dirname(configPath), 'twitterminalConfig.old.json'), oldConfig)
+
+			// Remplacer la configuration
+			fs.writeFileSync(configPath, JSON.stringify(fetchContent, null, 2))
+
+			// C'est bon, c'est fini
+			spinner.text = 'Configuration Twitterminal remplacée.'
+			spinner.succeed()
+
+			// Dire également qu'une copie a été faite
+			console.log(chalk.dim("Une copie de la configuration Twitterminal a été créée dans ") + chalk.cyan(path.join(path.dirname(configPath), 'twitterminalConfig.old.json')))
+		}
+	}
+
 	// Arrêter le processus automatiquement (car la notif le fait attendre)
 	setTimeout(() => process.exit(), 5000)
 }
@@ -504,17 +782,20 @@ async function createGroupLink(arrayLink, time){
 
 	// Afficher un spinner
 	spinner.start()
-	spinner.text = " Envoi du groupe à HiberFile..."
+	spinner.text = "Envoi du groupe à HiberFile..."
+
+	// Ajouter le groupe à l'historique
+	addToHistory(`https://hiberfile.com/d/${fetchCreate.hiberfileId}`, 'group', time)
 
 	// Arrêter le spinner
-	spinner.text = " Groupe crée : "
+	spinner.text = "Groupe crée : "
 	spinner.succeed()
 
 	// Copier le lien dans le presse papier
-	clipboardy.write("https://hiberfile.com/d/" + fetchCreate.hiberfileId).catch(err => {})
+	clipboardy.write(`https://hiberfile.com/d/${fetchCreate.hiberfileId}`).catch(err => {})
 
 	// Donner le lien
-	console.log(chalk.cyan("https://hiberfile.com/d/" + fetchCreate.hiberfileId));
+	console.log(chalk.cyan(`https://hiberfile.com/d/${fetchCreate.hiberfileId}`));
 
 	// Afficher une notification
 	showNotificationUpload("HiberCLI - Groupe de liens", `Groupe de lien crée avec succès.\nhiberfile.com/d/${fetchCreate.hiberfileId}`, fetchCreate.hiberfileId)

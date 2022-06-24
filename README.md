@@ -1,3 +1,12 @@
+### Fin de l'hébergement d'HiberFile
+
+L'hébergement d'HiberFile s'arrêtera en fin d'année, le 31 décembre 2022. A ce moment là, HiberCLI ne vous permettra plus de télécharger ou uploader des fichiers, et le repo GitHub sera archivé.
+
+Source : [Twitter / HiberFile](https://twitter.com/HiberFile/status/1540049377800208390).
+
+Une alternative à HiberCLI est prévu, mais arrivera sûrement à la fin de l'année. En attendant, vous pouvez continuer à utiliser HiberFile (et HiberCLI) jusqu'à sa fin, ou utiliser [SendOverNetwork](https://github.com/johan-perso/sendovernetwork) (CLI) et [SwissTransfer](https://swisstransfer.com) (WEB).
+
+
 # HiberCLI
 
 [HiberFile](https://hiberfile.com) est un service permettant de partager des fichiers rapidement et sans compte obligatoire. HiberCLI permet lui, de télécharger / envoyer des fichiers sur HiberFile. Vous pouvez également crée des groupes de liens et les partager.

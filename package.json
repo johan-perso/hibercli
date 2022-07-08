@@ -1,6 +1,6 @@
 {
   "name": "hibercli",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "Télécharger et envoyer des fichiers depuis HiberFile, via votre terminal.",
   "keywords": [
     "cli",
@@ -11,13 +11,13 @@
   "license": "MIT",
   "dependencies": {
     "@tsmx/human-readable": "^1.0.6",
+    "archiver": "^5.3.1",
     "boxen": "^5.0.1",
     "chalk": "^4.1.2",
     "cli-box": "^6.0.10",
     "clipboardy": "^2.3.0",
+    "extract-zip": "^2.0.1",
     "inquirer": "^8.1.2",
-    "marked": "^4.0.13",
-    "marked-terminal": "^4.1.1",
     "node-fetch": "^2.6.1",
     "node-notifier": "^10.0.0",
     "nodejs-file-downloader": "^4.7.2",

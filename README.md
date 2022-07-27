@@ -1,10 +1,10 @@
 ### Fin de l'hébergement d'HiberFile
 
-L'hébergement d'HiberFile s'arrêtera en fin d'année, le 31 décembre 2022. A ce moment là, HiberCLI ne vous permettra plus de télécharger ou uploader des fichiers à partir des serveurs d'HiberFile.
+L'hébergement d'HiberFile s'arrêtera un peu avant la fin de l'année, le 31 août 2022. A ce moment là, HiberCLI ne vous permettra plus de télécharger ou uploader des fichiers à partir des serveurs d'HiberFile.
 
-Source : [Twitter / HiberFile](https://twitter.com/HiberFile/status/1540049377800208390).
+Source : [Twitter / HiberFile](https://twitter.com/HiberFile/status/1552227485500194817).
 
-Une alternative à HiberCLI est prévu, mais arrivera sûrement à la fin de l'année. En attendant, vous pouvez continuer à utiliser HiberFile (et HiberCLI) jusqu'à sa fin, ou utiliser [SendOverNetwork](https://github.com/johan-perso/sendovernetwork) (CLI) et [SwissTransfer](https://swisstransfer.com) (WEB).
+Une alternative à HiberCLI est prévu, mais arrivera sûrement après la fermeture (car flemme). En attendant, vous pouvez continuer à utiliser HiberFile (et HiberCLI) jusqu'à sa fin, ou utiliser [SendOverNetwork](https://github.com/johan-perso/sendovernetwork) (CLI) et [SwissTransfer](https://swisstransfer.com) (WEB).
 
 Vous pouvez également héberger HiberFile ([API](https://github.com/HiberFile/HiberAPI) et [Site](https://github.com/hiberfile/hiberfile)) vous même, et modifier certaines variables d'environnements pour faire qu'HiberCLI utilise votre instance.
 

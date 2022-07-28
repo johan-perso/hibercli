@@ -3,20 +3,20 @@
 // Lazy Load Modules
 var _require = require;
 var require = function (moduleName) {
-    var module;
-    return new Proxy(function () {
-        if (!module) {
-            module = _require(moduleName)
-        }
-        return module.apply(this, arguments)
-    }, {
-        get: function (target, name) {
-            if (!module) {
-                module = _require(moduleName)
-            }
-            return module[name];
-        }
-    })
+	var module;
+	return new Proxy(function () {
+		if (!module) {
+			module = _require(moduleName)
+		}
+		return module.apply(this, arguments)
+	}, {
+		get: function (target, name) {
+			if (!module) {
+				module = _require(moduleName)
+			}
+			return module[name];
+		}
+	})
 };
 
 // Dépendences et quelques variables
@@ -135,6 +135,9 @@ function showBoxPreview(text, h, align){
 
 // Fonction pour ajouter un lien à l'historique de fichiers
 function addToHistory(link, type, expirationTime){
+	// Si l'historique est désactivé
+	if(process.env.HIBERCLI_DISABLE_HISTORY) return false;
+
 	// Obtenir un chemin pour l'enregistrement de l'historique
 		// Crée un dossier si il n'existe pas
 		if(!fs.existsSync(path.join(os.tmpdir(), "HiberCLI_temp"))){
@@ -249,8 +252,8 @@ async function doRequestUpload(filePath, time){
 
 	// Faire une requête vers HiberFile : crée le fichier
 	var fetchCreate = await fetch(`${hiberfileAPILink}/files/create`, { method: 'POST', follow: 20, size: 500000, body: JSON.stringify(bodyCreate), headers: { 'Content-Type': 'application/json' } })
-    .then(res => res.json())
-    .catch(err => {
+	.then(res => res.json())
+	.catch(err => {
 		spinner.fail()
 		console.log(chalk.red(err))
 		process.exit()
@@ -258,8 +261,8 @@ async function doRequestUpload(filePath, time){
 
 	// Faire une requête pour uploader le fichier
 	var fetchUpload = await fetch(fetchCreate?.uploadUrls?.[0], { method: 'PUT', follow: 20, body: readStream })
-    .then(res => res.headers.get("etag"))
-    .catch(err => {
+	.then(res => res.headers.get("etag"))
+	.catch(err => {
 		spinner.fail()
 		console.log(chalk.red(err))
 		process.exit()
@@ -267,8 +270,8 @@ async function doRequestUpload(filePath, time){
 
 	// Faire une requête vers HiberFile : finaliser l'envoie
 	var fetchFinish = await fetch(`${hiberfileAPILink}/files/${fetchCreate.hiberfileId}/finish/`, { method: 'POST', follow: 20, body: JSON.stringify(bodyFinish).replace(/%ETAG%/g, JSON.parse(fetchUpload)).replace(/%UPLOADID%/g, fetchCreate.uploadId), headers: { 'Content-Type': 'application/json' } })
-    .then(res => res.ok)
-    .catch(err => {
+	.then(res => res.ok)
+	.catch(err => {
 		spinner.fail()
 		console.log(chalk.red(err))
 		process.exit()
@@ -278,10 +281,13 @@ async function doRequestUpload(filePath, time){
 	return fetchCreate;
 }
 
-// Upload / Création d'un groupe de lien : afficher une notification
-async function showNotificationUpload(title, message, hiberfileId){
+// Afficher une notification
+async function showNotification(title, message, hiberfileId){
 	// Si l'os n'est pas Windows ou macOS, annuler
 	if(os.platform() !== "win32" && os.platform() !== "darwin") return;
+
+	// Si les notifications sont désactivées
+	if(process.env.HIBERCLI_DISABLE_NOTIFICATIONS) return false;
 
 	// Obtenir un QR code vers le lien HiberFile
 	if(hiberfileId) var qrcode = await qrGenerator(`${hiberfileWEBLink}/d/${hiberfileId}`)
@@ -371,6 +377,11 @@ if(process.argv.slice(2)[0] === "--upload" || process.argv.slice(2)[0] === "-u")
 }
 
 if(process.argv.slice(2)[0] === "--history" || process.argv.slice(2)[0] === "-h"){
+	// Si l'historique est désactivé
+	if(process.env.HIBERCLI_DISABLE_HISTORY){
+		return console.log(`L'historique semble être désactivé. Pour le réactiver, supprimer la variable d'environnement ${chalk.yellow('HIBERCLI_DISABLE_HISTORY')}`)
+	}
+
 	// Obtenir un chemin pour l'enregistrement de l'historique
 		// Crée un dossier si il n'existe pas
 		if(!fs.existsSync(path.join(os.tmpdir(), "HiberCLI_temp"))){
@@ -602,13 +613,13 @@ async function upload(filePath, time){
 	spinner.succeed()
 
 	// Copier le lien dans le presse papier
-	clipboardy.write(`${hiberfileWEBLink}/d/${fetchCreate.hiberfileId}`).catch(err => {})
+	if(!process.env.HIBERCLI_DISABLE_AUTO_WRITE_CLIPBOARD) clipboardy.write(`${hiberfileWEBLink}/d/${fetchCreate.hiberfileId}`).catch(err => {})
 
 	// Donner le lien
 	console.log(chalk.cyan(`${hiberfileWEBLink}/d/${fetchCreate.hiberfileId}`));
 
 	// Afficher une notification
-	showNotificationUpload("HiberCLI - Partage de fichier", `${path.basename(filePath)} uploadé avec succès.\n${simplified_hiberfileWEBLink}/d/${fetchCreate.hiberfileId}`, fetchCreate.hiberfileId)
+	showNotification("HiberCLI - Partage de fichier", `${path.basename(filePath)} uploadé avec succès.\n${simplified_hiberfileWEBLink}/d/${fetchCreate.hiberfileId}`, fetchCreate.hiberfileId)
 
 	// Supprimer le fichier si l'archive a été autogénéré
 	if(isArchiveSelfGenerated == true){
@@ -632,8 +643,8 @@ async function download(link){
 
 	// Faire une requête pour le code HTTP
 	var fetchCode = await fetch(`${hiberfileAPILink}/files/${id}`, { method: 'GET', follow: 20 })
-    .then(res => res.statusText)
-    .catch(err => {
+	.then(res => res.statusText)
+	.catch(err => {
 		spinner.fail()
 		console.log(chalk.red(err))
 		process.exit()
@@ -651,8 +662,8 @@ async function download(link){
 
 	// Obtenir des informations sur le fichier
 	var fetchInfo = await fetch(`${hiberfileAPILink}/files/${id}`, { method: 'GET', follow: 20 })
-    .then(res => res.json())
-    .catch(err => {
+	.then(res => res.json())
+	.catch(err => {
 		spinner.fail()
 		console.log(chalk.red(err))
 		process.exit()
@@ -662,95 +673,102 @@ async function download(link){
 	spinner.text = "Obtention des informations du fichier"
 	spinner.succeed()
 
-	// Obtenir le contenu du fichier (pour afficher une préview)
-	if(fetchInfo.filename.endsWith(".txt") || fetchInfo.filename.endsWith(".link") || fetchInfo.filename.endsWith(".hibercli-links")) var fetchContent = await fetch(fetchInfo.downloadUrl, { method: 'GET', follow: 20 })
-    .then(res => res.text())
-    .catch(err => {
-		console.log(chalk.red(err))
-		process.exit()
-	})
+	// Si la prévisualisation des fichier n'est pas désactivée
+	if(!process.env.HIBERCLI_DISABLE_PREVIEW){
+		// Obtenir le contenu du fichier (pour afficher une préview)
+		if(fetchInfo.filename.endsWith(".txt") || fetchInfo.filename.endsWith(".link") || fetchInfo.filename.endsWith(".hibercli-links")) var fetchContent = await fetch(fetchInfo.downloadUrl, { method: 'GET', follow: 20 })
+		.then(res => res.text())
+		.catch(err => {
+			console.log(chalk.red(err))
+			process.exit()
+		})
 
-	// Afficher une prévisualisation si possible
-	if(fetchInfo.filename.endsWith(".txt")){
-		// Obtenir une preview
-		var preview = showBoxPreview(fetchContent, fetchContent, 'left')
+		// Afficher une prévisualisation si possible
+		if(fetchInfo.filename.endsWith(".txt")){
+			// Obtenir une preview
+			var preview = showBoxPreview(fetchContent, fetchContent, 'left')
 
-		// Afficher la preview
-		console.log("Prévisualisation du fichier texte : ")
-		console.log(preview)
-	}
-	if(fetchInfo.filename.endsWith(".link")){
-		// Obtenir une preview
-		var preview = showBoxPreview(fetchContent.replace("[HiberCLI-Link by Johan_Stickman]", "").replace("OriginalURL:", "").replace(/\n/g, ""), fetchContent.replace("[HiberCLI-Link by Johan_Stickman]", "").replace("OriginalURL:", "").replace(/\n/g, ""), 'middle')
-
-		// Afficher la preview
-		console.log("Prévisualisation du fichier lien : ")
-		return console.log(preview)
-	}
-	if(fetchInfo.filename.endsWith(".hibercli-links")){
-		// Faire un array avec la liste des sites
-		var listWeb = fetchContent.toString().replace(/\r\n/g,'\n').split('\n');
-		var arrayWebsite = []
-		for(let i of listWeb) {
-			if(i !== "[HiberCLI-LinkS by Johan_Stickman]" && i !== "" && i !== " ") arrayWebsite.push(i)
+			// Afficher la preview
+			console.log("Prévisualisation du fichier texte : ")
+			console.log(preview)
 		}
+		if(fetchInfo.filename.endsWith(".link")){
+			// Obtenir une preview
+			var preview = showBoxPreview(fetchContent.replace("[HiberCLI-Link by Johan_Stickman]", "").replace("OriginalURL:", "").replace(/\n/g, ""), fetchContent.replace("[HiberCLI-Link by Johan_Stickman]", "").replace("OriginalURL:", "").replace(/\n/g, ""), 'middle')
 
-		// Afficher un menu de sélection
-		return inquirer.prompt([
-			{
-				type: 'checkbox',
-				name: 'url',
-				message: 'Choissisez les sites à ouvrir',
-				choices: arrayWebsite
-			}
-		])
-		// Quand une réponse est obtenu
-		.then(answer => {
-			// Afficher un spinner
-			spinner.start()
-			spinner.text = "Ouverture des sites..."
-
-			// Si aucun site n'a été choisi
-			if(!answer.url || answer.url && !answer.url[0]){
-				spinner.text = "Aucun site choisi"
-				return spinner.fail()
+			// Afficher la preview
+			console.log("Prévisualisation du fichier lien : ")
+			return console.log(preview)
+		}
+		if(fetchInfo.filename.endsWith(".hibercli-links")){
+			// Faire un array avec la liste des sites
+			var listWeb = fetchContent.toString().replace(/\r\n/g,'\n').split('\n');
+			var arrayWebsite = []
+			for(let i of listWeb) {
+				if(i !== "[HiberCLI-LinkS by Johan_Stickman]" && i !== "" && i !== " ") arrayWebsite.push(i)
 			}
 
-			// Ouvrir les sites
-			answer.url.forEach(url => {
-				// Ouvrir le/les sites
-				require("openurl").open(url)
-			})
+			// Afficher un menu de sélection
+			return inquirer.prompt([
+				{
+					type: 'checkbox',
+					name: 'url',
+					message: 'Choissisez les sites à ouvrir',
+					choices: arrayWebsite
+				}
+			])
+			// Quand une réponse est obtenu
+			.then(answer => {
+				// Afficher un spinner
+				spinner.start()
+				spinner.text = "Ouverture des sites..."
 
-			// Arrêter le spinner
-			spinner.text = "Sites ouverts dans un navigateur"
-			spinner.succeed()
-		});
+				// Si aucun site n'a été choisi
+				if(!answer.url || answer.url && !answer.url[0]){
+					spinner.text = "Aucun site choisi"
+					return spinner.fail()
+				}
+
+				// Ouvrir les sites
+				answer.url.forEach(url => {
+					// Ouvrir le/les sites
+					require("openurl").open(url)
+				})
+
+				// Arrêter le spinner
+				spinner.text = "Sites ouverts dans un navigateur"
+				spinner.succeed()
+			});
+		}
 	}
 
 	// Vérifier si un fichier avec ce nom n'existe pas déjà
 	if(fs.existsSync(path.join(process.cwd(), fetchInfo.filename))){
-		// Si oui, demander si l'utilisateur veut le remplacer
-		var answer = await inquirer.prompt([
-			{
-				type: 'confirm',
-				name: 'replace',
-				message: `Un fichier portant le nom "${fetchInfo.filename}" existe déjà. Voulez-vous le remplacer ?`,
-				default: false
-			}
-		])
+		// Si on doit directement rempalcer sans demander
+		if(process.env.HIBERCLI_REPLACE_WITHOUT_ASKING) fs.unlinkSync(path.join(process.cwd(), fetchInfo.filename))
+		else {
+			// Si oui, demander si l'utilisateur veut le remplacer
+			var answer = await inquirer.prompt([
+				{
+					type: 'confirm',
+					name: 'replace',
+					message: `Un fichier portant le nom "${fetchInfo.filename}" existe déjà. Voulez-vous le remplacer ?`,
+					default: false
+				}
+			])
 
-		// Si l'utilisateur ne veut pas le remplacer, obtenir un nom différent qui n'existe pas déjà
-		if(!answer.replace){
-			var newName = fetchInfo.filename
-			while(fs.existsSync(path.join(process.cwd(), newName))){
-				newName = `${Math.floor(Math.random() * 100)}_${fetchInfo.filename}`
+			// Si l'utilisateur ne veut pas le remplacer, obtenir un nom différent qui n'existe pas déjà
+			if(!answer.replace){
+				var newName = fetchInfo.filename
+				while(fs.existsSync(path.join(process.cwd(), newName))){
+					newName = `${Math.floor(Math.random() * 100)}_${fetchInfo.filename}`
+				}
+				fetchInfo.filename = newName
 			}
-			fetchInfo.filename = newName
+
+			// Si l'utilisateur veut le remplacer, supprimer le fichier
+			else fs.unlinkSync(path.join(process.cwd(), fetchInfo.filename))
 		}
-
-		// Si l'utilisateur veut le remplacer, supprimer le fichier
-		else fs.unlinkSync(path.join(process.cwd(), fetchInfo.filename))
 	}
 
 	// Afficher un spinner : téléchargement de ...
@@ -760,7 +778,7 @@ async function download(link){
 	// Préparer le téléchargement
 	const downloader = new Downloader({
 		url: fetchInfo.downloadUrl,
-		directory: path.join(process.cwd()),  
+		directory: path.join(process.cwd()),
 		fileName: fetchInfo.filename,
 		onProgress: function (percentage, chunk, remainingSize){
 			// Modifier le spinner
@@ -786,19 +804,19 @@ async function download(link){
 	console.log(chalk.green("✔") + chalk.dim("  Le fichier se trouve dans ") + chalk.cyan(path.join(path.join(process.cwd()), fetchInfo.filename)))
 
 	// Afficher une notification
-	showNotificationUpload("HiberCLI - Téléchargement", `${fetchInfo.filename} vient de se téléchargé avec succès.`)
+	showNotification("HiberCLI - Téléchargement", `${fetchInfo.filename} vient de se téléchargé avec succès.`)
 
 	// Si le fichier est un fichier .zip
 	if(fetchInfo.filename.endsWith(".zip")){
 		// Demander si on veut extraire
-		var answer = await inquirer.prompt([
+		if(!process.env.HIBERCLI_AUTO_EXTRACT_ZIP) var answer = await inquirer.prompt([
 			{
 				type: 'confirm',
 				name: 'extract',
 				message: `Voulez-vous extraire l'archive ?`,
 				default: true
 			}
-		])
+		]); else var answer = { extract: true }
 
 		// Si on veut extraire
 		if(answer.extract){
@@ -844,14 +862,14 @@ async function download(link){
 
 			// Demander si on veut remplacer la configuration actuelle par celle-ci
 			console.log(`Le fichier téléchargé est considéré comme une configuration Twitterminal.`)
-			var wantToReplaceTwitterminalConfig = await inquirer.prompt([
+			if(!process.env.HIBERCLI_AUTO_USE_TWITTERMINAL_SAVE) var wantToReplaceTwitterminalConfig = await inquirer.prompt([
 				{
 					type: 'confirm',
 					name: 'replace',
 					message: "Voulez-vous l'utiliser ?",
 					default: false
 				}
-			]);
+			]); else var answer = { extract: true }
 
 			// Si on ne veut pas remplacer, laissons tomber :(
 			if(!wantToReplaceTwitterminalConfig.replace) return;
@@ -909,13 +927,13 @@ async function createGroupLink(arrayLink, time){
 	spinner.succeed()
 
 	// Copier le lien dans le presse papier
-	clipboardy.write(`${hiberfileWEBLink}/d/${fetchCreate.hiberfileId}`).catch(err => {})
+	if(!process.env.HIBERCLI_DISABLE_AUTO_WRITE_CLIPBOARD) clipboardy.write(`${hiberfileWEBLink}/d/${fetchCreate.hiberfileId}`).catch(err => {})
 
 	// Donner le lien
 	console.log(chalk.cyan(`${hiberfileWEBLink}/d/${fetchCreate.hiberfileId}`));
 
 	// Afficher une notification
-	showNotificationUpload("HiberCLI - Groupe de liens", `Groupe de lien crée avec succès.\n${simplified_hiberfileWEBLink}/d/${fetchCreate.hiberfileId}`, fetchCreate.hiberfileId)
+	showNotification("HiberCLI - Groupe de liens", `Groupe de lien crée avec succès.\n${simplified_hiberfileWEBLink}/d/${fetchCreate.hiberfileId}`, fetchCreate.hiberfileId)
 
 	// Arrêter le processus automatiquement (car la notif le fait attendre)
 	setTimeout(() => process.exit(), 5000)

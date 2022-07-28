@@ -44,14 +44,25 @@ Dans un terminal, faite la commande `hibercli` pour afficher la page d'aide d'Hi
 
 ## Variables d'environnements
 
-Vous pouvez modifier le lien de l'API et du site utilisé par HiberCLI grâce aux variables d'environnements suivantes 
+Vous pouvez modifier certains paramètres d'HiberCLI grâce aux variables d'environnements suivantes :
 
-| Nom                     | Utilité                                              | Valeur par défaut         |
-|-------------------------|------------------------------------------------------|---------------------------|
-| `HIBERCLI_API_BASELINK` | API (téléchargement et envoie de fichiers)           | https://api.hiberfile.com |
-| `HIBERCLI_WEB_BASELINK` | WEB (télécharger des fichiers depuis son navigateur) | https://hiberfile.com     |
+| Nom                     | Utilité                                                                           | Valeur par défaut         |
+|-------------------------|-----------------------------------------------------------------------------------|---------------------------|
+| `HIBERCLI_API_BASELINK`                 | API (téléchargement et envoie de fichiers)                        | https://api.hiberfile.com |
+| `HIBERCLI_WEB_BASELINK`                 | WEB (télécharger des fichiers depuis son navigateur)              | https://hiberfile.com     |
+| `HIBERCLI_DISABLE_HISTORY`              | Désactive l'historique d'upload                                   |                           |
+| `HIBERCLI_DISABLE_NOTIFICATIONS`        | Désactive les notifications sous Windows et macOS                 |                           |
+| `HIBERCLI_DISABLE_AUTO_WRITE_CLIPBOARD` | Désactive la copie des liens dans le presse papier                |                           |
+| `HIBERCLI_DISABLE_PREVIEW`              | Désactive les prévisualisations de fichiers                       |                           |
+| `HIBERCLI_REPLACE_WITHOUT_ASKING`       | Remplace les fichiers sans demandés lorsqu'un conflit est détecté |                           |
+| `HIBERCLI_AUTO_EXTRACT_ZIP`             | Extrait les fichiers .zip lors du téléchargement sans demander    |                           |
+| `HIBERCLI_AUTO_USE_TWITTERMINAL_SAVE`   | Importe les configurations [Twitterminal](https://github.com/johan-perso/twitterminal) sans demander             |                           |
 
-Vous pouvez utiliser la commande `hibercli --apiLink` pour voir les paramètres actuellement définis.
+> Vous pouvez utiliser la commande `hibercli --apiLink` pour voir les paramètres actuellement définis pour les deux premières variables.
+
+> Seul `HIBERCLI_API_BASELINK` et `HIBERCLI_WEB_BASELINK` peuvent contenir une valeur spécifique. Les autres variables peuvent être activé en définissant une valeur (n'importe laquelle), ou désactivé (ne pas définir de valeur).
+
+> `HIBERCLI_DISABLE_PREVIEW` désactive également la fonctionnalité des groupes de liens
 
 
 ## Liés

@@ -76,6 +76,7 @@ Vous pouvez modifier certains paramètres d'HiberCLI grâce aux variables d'envi
 
 * [DylanAkp/HiberSend](https://github.com/DylanAkp/HiberSend) - Ajoute une option "Partager avec HiberFile" dans le menu contextuel d'un fichier de l'explorateur de fichiers.
 * [HiberFile](https://api.hiberfile.com/documentation) - Documentation de l'API d'HiberFile
+* [EteFile](https://github.com/johan-perso/etefile-api) - Alternative à l'API d'HiberFile en utilisant Firebase
 
 
 ## Licence

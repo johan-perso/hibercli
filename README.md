@@ -2,11 +2,16 @@
 
 L'hébergement d'HiberFile s'arrêtera un peu avant la fin de l'année, le 31 août 2022. A ce moment là, HiberCLI ne vous permettra plus de télécharger ou uploader des fichiers à partir des serveurs d'HiberFile.
 
-Source : [Twitter / HiberFile](https://twitter.com/HiberFile/status/1552227485500194817).
+En attendant, vous pouvez continuer à utiliser HiberFile (et HiberCLI) jusqu'à sa fin, ou utiliser [SendOverNetwork](https://github.com/johan-perso/sendovernetwork) (CLI) et [SwissTransfer](https://swisstransfer.com) (WEB).
 
-Une alternative à HiberCLI est prévu, mais arrivera sûrement après la fermeture (car flemme). En attendant, vous pouvez continuer à utiliser HiberFile (et HiberCLI) jusqu'à sa fin, ou utiliser [SendOverNetwork](https://github.com/johan-perso/sendovernetwork) (CLI) et [SwissTransfer](https://swisstransfer.com) (WEB).
+Vous pouvez également héberger votre propre instance vous même, et modifier certains paramètres pour qu'HiberFile n'utilise pas l'API d'HiberFile mais la votre.
 
-Vous pouvez également héberger HiberFile ([API](https://github.com/HiberFile/HiberAPI) et [Site](https://github.com/hiberfile/hiberfile)) vous même, et modifier certaines variables d'environnements pour faire qu'HiberCLI utilise votre instance.
+> Si vous hébergez l'API, mais pas le site, vous serez tout de même dans la possibilité de télécharger et uploader des fichiers depuis le CLI
+
+* HiberFile (utilise Amazon S3) : [API](https://github.com/HiberFile/HiberAPI) | [Site](https://github.com/hiberfile/hiberfile)
+* EteFile (utilise Firebase) : [API](https://github.com/johan-perso/etefile-api) | [Site](https://github.com/johan-perso/etefile-web)
+
+*Source : [Twitter / HiberFile](https://twitter.com/HiberFile/status/1552227485500194817)*
 
 
 # HiberCLI
@@ -46,8 +51,10 @@ Dans un terminal, faite la commande `hibercli` pour afficher la page d'aide d'Hi
 
 Vous pouvez modifier certains paramètres d'HiberCLI grâce aux variables d'environnements suivantes :
 
-| Nom                     | Utilité                                                                           | Valeur par défaut         |
-|-------------------------|-----------------------------------------------------------------------------------|---------------------------|
+| Nom                                     | Utilité                                                           | Valeur par défaut         |
+|-----------------------------------------|-------------------------------------------------------------------|---------------------------|
+| `HIBERCLI_LOGIN_EMAIL`                  | Permet d'entrer une adresse mail pour se connecter à EteFile      |                           |
+| `HIBERCLI_LOGIN_PASSWORD`               | Permet d'entrer un mot de passe pour se connecter à EteFile       |                           |	
 | `HIBERCLI_API_BASELINK`                 | API (téléchargement et envoie de fichiers)                        | https://api.hiberfile.com |
 | `HIBERCLI_WEB_BASELINK`                 | WEB (télécharger des fichiers depuis son navigateur)              | https://hiberfile.com     |
 | `HIBERCLI_DISABLE_HISTORY`              | Désactive l'historique d'upload                                   |                           |
@@ -58,9 +65,9 @@ Vous pouvez modifier certains paramètres d'HiberCLI grâce aux variables d'envi
 | `HIBERCLI_AUTO_EXTRACT_ZIP`             | Extrait les fichiers .zip lors du téléchargement sans demander    |                           |
 | `HIBERCLI_AUTO_USE_TWITTERMINAL_SAVE`   | Importe les configurations [Twitterminal](https://github.com/johan-perso/twitterminal) sans demander             |                           |
 
-> Vous pouvez utiliser la commande `hibercli --apiLink` pour voir les paramètres actuellement définis pour les deux premières variables.
+> Vous pouvez utiliser la commande `hibercli --apiLink` pour voir les paramètres actuellement définis pour les variables `HIBERCLI_API_BASELINK` et `HIBERCLI_WEB_BASELINK`
 
-> Seul `HIBERCLI_API_BASELINK` et `HIBERCLI_WEB_BASELINK` peuvent contenir une valeur spécifique. Les autres variables peuvent être activé en définissant une valeur (n'importe laquelle), ou désactivé (ne pas définir de valeur).
+> Seul les 4 premiers paramètres peuvent contenir une valeur spécifique. Les autres variables peuvent être activé en définissant une valeur (n'importe laquelle), ou désactivé (ne pas définir de valeur).
 
 > `HIBERCLI_DISABLE_PREVIEW` désactive également la fonctionnalité des groupes de liens
 

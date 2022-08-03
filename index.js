@@ -38,9 +38,8 @@ const hiberfileAPILink = process.env.HIBERCLI_API_BASELINK || "https://api.hiber
 const hiberfileWEBLink = process.env.HIBERCLI_WEB_BASELINK || "https://hiberfile.com"; const simplified_hiberfileWEBLink = hiberfileWEBLink.replace(/https:\/\//g, '').replace(/http:\/\//g, '').replace(/www\.\.\./g, '')
 const pkg = require('./package.json')
 
-// Système de mise à jour
+// Vérifier les mises à jour
 const notifierUpdate = updateNotifier({ pkg, updateCheckInterval: 10 });
-
 if(notifierUpdate.update && pkg.version !== notifierUpdate.update.latest){
 	// Afficher un message
 	console.log(boxen("Mise à jour disponible " + chalk.dim(pkg.version) + chalk.reset(" → ") + chalk.green(notifierUpdate.update.latest) + "\n" + chalk.cyan("npm i -g " + pkg.name) + " pour mettre à jour", {
@@ -234,24 +233,27 @@ async function doRequestUpload(filePath, time){
 
 	// Body pour le fetch : crée le fichier
 	var bodyCreate = {
-		"chunksNumber": 1,
-		"name": path.basename(filePath)
+		chunksNumber: 1,
+		name: path.basename(filePath),
+		email: (process.env.HIBERCLI_LOGIN_EMAIL ? process.env.HIBERCLI_LOGIN_EMAIL : null),
+		password: (process.env.HIBERCLI_LOGIN_PASSWORD ? process.env.HIBERCLI_LOGIN_PASSWORD : null),
+		expire: time
 	}
 
 	// Body pour le fetch : finaliser l'envoie
 	var bodyFinish = {
-		"parts": [
+		parts: [
 			{
-				"ETag": "%ETAG%",
-				"PartNumber": 1
+				ETag: "%ETAG%",
+				PartNumber: 1
 			}
 		],
-		"uploadId": "%UPLOADID%",
-		"expire": time
+		uploadId: "%UPLOADID%",
+		expire: time
 	}
 
 	// Faire une requête vers HiberFile : crée le fichier
-	var fetchCreate = await fetch(`${hiberfileAPILink}/files/create`, { method: 'POST', follow: 20, size: 500000, body: JSON.stringify(bodyCreate), headers: { 'Content-Type': 'application/json' } })
+	var fetchCreate = await fetch(`${hiberfileAPILink}/files/create`, { method: 'POST', body: JSON.stringify(bodyCreate), headers: { 'Content-Type': 'application/json' } })
 	.then(res => res.json())
 	.catch(err => {
 		spinner.fail()
@@ -259,8 +261,15 @@ async function doRequestUpload(filePath, time){
 		process.exit()
 	})
 
-	// Faire une requête pour uploader le fichier
-	var fetchUpload = await fetch(fetchCreate?.uploadUrls?.[0], { method: 'PUT', follow: 20, body: readStream })
+	// Si il y a une erreur
+	if(fetchCreate.error){
+		spinner.fail()
+		console.log(chalk.red(fetchCreate?.message?.replace('email/password manquant',`L'API nécessite une connexion pour uploader des fichiers. Définissez les variables d'environnements ${chalk.yellow('HIBERCLI_LOGIN_EMAIL')} et ${chalk.yellow('HIBERCLI_LOGIN_PASSWORD')}.\nLes informations définies sur l'API peuvent être vues en faisant la commande ${chalk.cyan('hibercli --apiLink')}.`))?.replace('User does not exist.',"Les informations de connexion sont incorrectes"))
+		process.exit()
+	}
+
+	// Faire une requête pour uploader le fichier - si on a pas d'autorisation donné (API normal d'HiberFile)
+	if(!fetchCreate.authorization) var fetchUpload = await fetch(fetchCreate?.uploadUrls?.[0], { method: 'PUT', body: readStream })
 	.then(res => res.headers.get("etag"))
 	.catch(err => {
 		spinner.fail()
@@ -268,8 +277,17 @@ async function doRequestUpload(filePath, time){
 		process.exit()
 	})
 
-	// Faire une requête vers HiberFile : finaliser l'envoie
-	var fetchFinish = await fetch(`${hiberfileAPILink}/files/${fetchCreate.hiberfileId}/finish/`, { method: 'POST', follow: 20, body: JSON.stringify(bodyFinish).replace(/%ETAG%/g, JSON.parse(fetchUpload)).replace(/%UPLOADID%/g, fetchCreate.uploadId), headers: { 'Content-Type': 'application/json' } })
+	// Faire une requête pour uploader le fichier - si on A UNE autorisation donné (EteFile/Firebase)
+	if(fetchCreate.authorization && fetchCreate?.authorization?.toString()?.startsWith('Firebase ')) var fetchUpload = await fetch(fetchCreate?.uploadUrls?.[0], { method: 'POST', body: readStream, headers: { 'Authorization': fetchCreate.authorization } })
+	.then(res => res.json())
+	.catch(err => {
+		spinner.fail()
+		console.log(chalk.red(err))
+		process.exit()
+	})
+
+	// Faire une requête vers HiberFile : finaliser l'envoie - si on a pas de propriété "name" dans fetchUpload (c'est à dire, qu'on utilise l'API d'HiberFile)
+	if(!fetchUpload?.name) var fetchFinish = await fetch(`${hiberfileAPILink}/files/${fetchCreate.hiberfileId}/finish/`, { method: 'POST', body: JSON.stringify(bodyFinish).replace(/%ETAG%/g, JSON.parse(fetchUpload)).replace(/%UPLOADID%/g, fetchCreate.uploadId), headers: { 'Content-Type': 'application/json' } })
 	.then(res => res.ok)
 	.catch(err => {
 		spinner.fail()
@@ -642,7 +660,7 @@ async function download(link){
 	id = id[id.length - 1]
 
 	// Faire une requête pour le code HTTP
-	var fetchCode = await fetch(`${hiberfileAPILink}/files/${id}`, { method: 'GET', follow: 20 })
+	var fetchCode = await fetch(`${hiberfileAPILink}/files/${id}`, { method: 'GET' })
 	.then(res => res.statusText)
 	.catch(err => {
 		spinner.fail()
@@ -661,7 +679,7 @@ async function download(link){
 	}
 
 	// Obtenir des informations sur le fichier
-	var fetchInfo = await fetch(`${hiberfileAPILink}/files/${id}`, { method: 'GET', follow: 20 })
+	var fetchInfo = await fetch(`${hiberfileAPILink}/files/${id}`, { method: 'GET' })
 	.then(res => res.json())
 	.catch(err => {
 		spinner.fail()
@@ -676,7 +694,7 @@ async function download(link){
 	// Si la prévisualisation des fichier n'est pas désactivée
 	if(!process.env.HIBERCLI_DISABLE_PREVIEW){
 		// Obtenir le contenu du fichier (pour afficher une préview)
-		if(fetchInfo.filename.endsWith(".txt") || fetchInfo.filename.endsWith(".link") || fetchInfo.filename.endsWith(".hibercli-links")) var fetchContent = await fetch(fetchInfo.downloadUrl, { method: 'GET', follow: 20 })
+		if(fetchInfo.filename.endsWith(".txt") || fetchInfo.filename.endsWith(".link") || fetchInfo.filename.endsWith(".hibercli-links")) var fetchContent = await fetch(fetchInfo.downloadUrl, { method: 'GET' })
 		.then(res => res.text())
 		.catch(err => {
 			console.log(chalk.red(err))
@@ -869,7 +887,7 @@ async function download(link){
 					message: "Voulez-vous l'utiliser ?",
 					default: false
 				}
-			]); else var answer = { extract: true }
+			]); else var answer = { replace: true }
 
 			// Si on ne veut pas remplacer, laissons tomber :(
 			if(!wantToReplaceTwitterminalConfig.replace) return;

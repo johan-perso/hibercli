@@ -81,4 +81,4 @@ Vous pouvez modifier certains paramètres d'HiberCLI grâce aux variables d'envi
 
 ## Licence
 
-MIT © [Johan](https://johanstickman.com)
+MIT © [Johan](https://johanstick.me)

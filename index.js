@@ -370,7 +370,7 @@ if(process.argv.slice(2)[0] === "--version" || process.argv.slice(2)[0] === "-v"
 	console.log(`HiberCLI utilise actuellement la version ${chalk.cyan(require('./package.json').version)}`)
 	console.log("────────────────────────────────────────────")
 	console.log("Développé par Johan le stickman")
-	console.log(chalk.cyan("https://johanstickman.com"))
+	console.log(chalk.cyan("https://johanstick.me"))
 	process.exit()
 }
 
